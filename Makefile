@@ -35,9 +35,11 @@ DEPS = $(OBJECTS:.o=.d)
 
 ifeq ($(OS), Windows_NT)
 	MKDIR_BUILD = if not exist build md build
+	MKDIR_DIST = if not exist build md dist
 	RMDIR = rd /s /q
 else
 	MKDIR_BUILD = mkdir -p build
+	MKDIR_DIST = mkdir -p dist
 	RMDIR = rm -rf
 endif
 
@@ -64,8 +66,18 @@ build/%.o: src/%.cpp
 	@$(MKDIR_BUILD)
 	$(CXX) -c $< -o $@ $(CFLAGS)
 
+dist:
+	@$(MKDIR_DIST)
+	w4 bundle ./build/cart.wasm --title "Sokoban" --html ./dist/index.html
+
+publish:
+	butler push ./dist chemecse/w4-sokoban:html5
+
+release: build/cart.wasm dist publish
+
 .PHONY: clean
 clean:
 	$(RMDIR) build
+	$(RMDIR) dist
 
 -include $(DEPS)

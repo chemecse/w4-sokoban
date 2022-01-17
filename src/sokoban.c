@@ -65,7 +65,7 @@ static void shadow_text(const char *value, int32_t x, int32_t y, int32_t blink) 
 	text(value, x, y);
 }
 
-GAME_UPDATE_AND_RENDER(game_update_and_render) {
+void game_update_and_render(struct game_input *input) {
 	if (!state.is_initialized) {
 		state.is_initialized = 1;
 		state.frame_count = 0;
