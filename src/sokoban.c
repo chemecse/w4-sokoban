@@ -4,12 +4,6 @@
 
 #include <assert.h>
 
-/*
- * TODOs:
- * - Add screen transitions
- * - Distribute on itch
- */
-
 #define XY(level, x, y) level->map[y][x]
 
 const uint16_t color_one = 1;
@@ -65,6 +59,14 @@ static void shadow_text(const char *value, int32_t x, int32_t y, int32_t blink) 
 	text(value, x, y);
 }
 
+/* compose sounds with https://wasm4.org/play/sound-demo/ */
+static void play_sound(uint32_t freq1, uint32_t freq2, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release, uint32_t volume, uint32_t channel, uint32_t mode) {
+	uint32_t freq = freq1 | (freq2 << 16);
+	uint32_t duration = (attack << 24) | (decay << 16) | sustain | (release << 8);
+	uint32_t flags = channel | (mode << 2);
+	tone(freq, duration, volume, flags);
+}
+
 void game_update_and_render(struct game_input *input) {
 	if (!state.is_initialized) {
 		state.is_initialized = 1;
@@ -77,6 +79,7 @@ void game_update_and_render(struct game_input *input) {
 
 	if (state.current_screen == GAME_SCREEN_TITLE) {
 		if (input->action_x) {
+			play_sound(170, 470, 0, 0, 16, 0, 100, 0, 0);
 			state.current_screen = GAME_SCREEN_PLAY;
 			state.current_level_idx = 0;
 		} else {
@@ -129,29 +132,32 @@ void game_update_and_render(struct game_input *input) {
 			level->state = LEVEL_IN_PROGRESS;
 		}
 
-		int32_t is_level_complete = 1;
-		for (int32_t i = 0; i < level->block_count; i++) {
-			int32_t is_end_block_covered = 0;
-			int32_t end_x = level->block_end_x[i];
-			int32_t end_y = level->block_end_y[i];
-			for (int32_t j = 0; j < level->block_count; j++) {
-				if (level->block_x[j] == end_x && level->block_y[j] == end_y) {
-					is_end_block_covered = 1;
+		if (level->state == LEVEL_IN_PROGRESS) {
+			if (input->action_z) {
+				play_sound(440, 160, 0, 0, 10, 0, 100, 0, 0);
+				level->state = LEVEL_START;
+			}
+
+			/* determine is level is complete */
+			int32_t is_level_complete = 1;
+			for (int32_t i = 0; i < level->block_count; i++) {
+				int32_t is_end_block_covered = 0;
+				int32_t end_x = level->block_end_x[i];
+				int32_t end_y = level->block_end_y[i];
+				for (int32_t j = 0; j < level->block_count; j++) {
+					if (level->block_x[j] == end_x && level->block_y[j] == end_y) {
+						is_end_block_covered = 1;
+						break;
+					}
+				}
+				if (!is_end_block_covered) {
+					is_level_complete = 0;
 					break;
 				}
 			}
-			if (!is_end_block_covered) {
-				is_level_complete = 0;
-				break;
-			}
-		}
-		if (is_level_complete) {
-			level->state = LEVEL_END;
-		}
-
-		if (level->state == LEVEL_IN_PROGRESS) {
-			if (input->action_z) {
-				level->state = LEVEL_START;
+			if (is_level_complete) {
+				level->state = LEVEL_END;
+				play_sound(170, 470, 0, 0, 14, 0, 100, 0, 2);
 			}
 
 			/* movement logic */
@@ -221,6 +227,9 @@ void game_update_and_render(struct game_input *input) {
 				levels[state.current_level_idx].state = LEVEL_START;
 				if (state.current_level_idx >= LEVEL_COUNT) {
 					state.current_screen = GAME_SCREEN_CREDITS;
+					play_sound(170, 470, 0, 0, 70, 0, 100, 1, 2);
+				} else {
+					play_sound(170, 470, 0, 0, 16, 0, 100, 0, 0);
 				}
 			}
 		}
@@ -272,6 +281,7 @@ void game_update_and_render(struct game_input *input) {
 	if (state.current_screen == GAME_SCREEN_CREDITS) {
 		if (input->action_z) {
 			state.current_screen = GAME_SCREEN_TITLE;
+			play_sound(170, 470, 0, 0, 16, 0, 100, 0, 0);
 		}
 
 		shadow_text("Sokoban", 53, 20, 0);
